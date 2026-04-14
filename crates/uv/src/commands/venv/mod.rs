@@ -29,6 +29,7 @@ use uv_resolver::{ExcludeNewer, FlatIndex};
 use uv_settings::PythonInstallMirrors;
 use uv_shell::{Shell, shlex_posix, shlex_windows};
 use uv_types::{AnyErrorBuild, BuildContext, BuildIsolation, BuildStack, HashStrategy};
+use uv_cli::VenvMode;
 use uv_virtualenv::OnExisting;
 use uv_warnings::warn_user;
 use uv_workspace::{DiscoveryOptions, VirtualProject, WorkspaceCache, WorkspaceError};
@@ -41,6 +42,10 @@ use crate::commands::reporters::PythonDownloadReporter;
 use crate::printer::Printer;
 
 use super::project::default_dependency_groups;
+
+mod bazel_manifest;
+mod bazel_postprocess;
+mod shim_bytes;
 
 #[derive(Error, Debug)]
 enum VenvError {
@@ -85,7 +90,12 @@ pub(crate) async fn venv(
     printer: Printer,
     relocatable: bool,
     preview: Preview,
+    mode: VenvMode,
+    pth_manifest: Option<PathBuf>,
 ) -> Result<ExitStatus> {
+    if mode == VenvMode::BazelRunfiles && pth_manifest.is_none() {
+        anyhow::bail!("--pth-manifest is required for --mode=bazel-runfiles");
+    }
     let project = if no_project {
         None
     } else {
@@ -206,6 +216,13 @@ pub(crate) async fn venv(
         upgradeable,
     )
     .map_err(VenvError::Creation)?;
+
+    if mode == VenvMode::BazelRunfiles {
+        let manifest_path = pth_manifest
+            .expect("--pth-manifest is required for --mode=bazel-runfiles");
+        bazel_postprocess::bazel_runfiles_postprocess(&path, &venv, &manifest_path)
+            .map_err(|err| VenvError::Creation(uv_virtualenv::Error::Io(err)))?;
+    }
 
     // Install seed packages.
     if seed {

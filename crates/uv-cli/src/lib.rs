@@ -3278,11 +3278,26 @@ pub struct VenvArgs {
     #[arg(long, value_enum, env = EnvVars::UV_LINK_MODE)]
     pub link_mode: Option<uv_install_wheel::LinkMode>,
 
+    /// The venv creation mode.
+    #[arg(long, value_enum, default_value = "standard")]
+    pub mode: VenvMode,
+
+    /// Path to a JSON manifest describing the Bazel runfiles dependencies.
+    #[arg(long, value_name = "PATH")]
+    pub pth_manifest: Option<PathBuf>,
+
     #[command(flatten)]
     pub refresh: RefreshArgs,
 
     #[command(flatten)]
     pub compat_args: compat::VenvCompatArgs,
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum VenvMode {
+    #[default]
+    Standard,
+    BazelRunfiles,
 }
 
 #[derive(Parser, Debug, Clone)]

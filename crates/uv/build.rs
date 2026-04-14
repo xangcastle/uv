@@ -38,4 +38,82 @@ fn main() {
         embed_manifest(manifest).expect("unable to embed manifest");
     }
     println!("cargo:rerun-if-changed=build.rs");
+
+    embed_bazel_shim();
+}
+
+fn embed_bazel_shim() {
+    let out_dir = std::env::var("OUT_DIR").unwrap();
+    let target = std::env::var("TARGET").unwrap_or_else(|_| {
+        let arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap();
+        let os = std::env::var("CARGO_CFG_TARGET_OS").unwrap();
+        format!("{arch}-{os}")
+    });
+    let exe_suffix = if std::env::var_os(EnvVars::CARGO_CFG_WINDOWS).is_some() {
+        ".exe"
+    } else {
+        ""
+    };
+    let shim_name = format!("uv-bazel-shim-{target}{exe_suffix}");
+    let shim_src = std::path::PathBuf::from("src/commands/venv/shims").join(&shim_name);
+
+    let shim_src = if shim_src.exists() {
+        shim_src
+    } else {
+        // Auto-build the shim so that `cargo build` works out-of-the-box when the host
+        // can compile for the target.
+        let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
+        let mut cmd = std::process::Command::new("cargo");
+        cmd.args([
+            "build",
+            "-p",
+            "uv-bazel-shim",
+            "--release",
+            "--target",
+            &target,
+        ])
+        .current_dir(&manifest_dir);
+        let status = cmd.status().expect("failed to run cargo build for uv-bazel-shim");
+        if !status.success() {
+            panic!("failed to build uv-bazel-shim for target {target}");
+        }
+        let target_dir = std::path::PathBuf::from(
+            std::env::var("CARGO_TARGET_DIR").unwrap_or_else(|_| {
+                std::path::Path::new(&manifest_dir)
+                    .join("target")
+                    .into_os_string()
+                    .into_string()
+                    .unwrap()
+            }),
+        );
+        target_dir
+            .join(&target)
+            .join("release")
+            .join(format!("uv-bazel-shim{exe_suffix}"))
+    };
+
+    if !shim_src.exists() {
+        panic!(
+            "Bazel shim binary not found at {}. \
+             Run `cargo build -p uv-bazel-shim --release --target {}` and copy the binary to {}",
+            shim_src.display(),
+            target,
+            shim_src.display()
+        );
+    }
+
+    let shim_dst = std::path::PathBuf::from(&out_dir).join(format!("uv-bazel-shim{exe_suffix}"));
+    std::fs::copy(&shim_src, &shim_dst).expect("copy shim binary");
+
+    let shim_bytes_rs = std::path::PathBuf::from(&out_dir).join("shim_bytes.rs");
+    std::fs::write(
+        &shim_bytes_rs,
+        format!(
+            "pub(crate) static SHIM_BYTES: &[u8] = include_bytes!(r#\"{}\"#);",
+            shim_dst.display()
+        ),
+    )
+    .expect("write shim_bytes.rs");
+
+    println!("cargo:rerun-if-changed={}", shim_src.display());
 }

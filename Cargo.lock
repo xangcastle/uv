@@ -5946,6 +5946,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "uv-bazel-shim"
+version = "0.0.39"
+dependencies = [
+ "tempfile",
+ "windows",
+]
+
+[[package]]
 name = "uv-bench"
 version = "0.0.39"
 dependencies = [
