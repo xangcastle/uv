@@ -5,7 +5,7 @@ use uv_python::PythonEnvironment;
 use walkdir::WalkDir;
 
 use crate::commands::venv::bazel_manifest::{BazelPthManifest, BazelPopulationStrategy};
-use crate::commands::venv::shim_bytes::SHIM_BYTES;
+use crate::commands::venv::shim_bytes::select_shim;
 
 /// Post-process a standard virtual environment for Bazel runfiles execution.
 pub(crate) fn bazel_runfiles_postprocess(
@@ -88,6 +88,23 @@ pub(crate) fn bazel_runfiles_postprocess(
         fs_err::write(pth_file, contents)?;
     }
 
+    let interpreter = env.interpreter();
+    let target = interpreter_target_triple(interpreter);
+    let shim_bytes = target
+        .as_deref()
+        .and_then(select_shim)
+        .ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::Other,
+                format!(
+                    "No Bazel shim available for target {}. \
+                     Run `cargo build -p uv-bazel-shim --release --target <triple>` \
+                     and copy the binary to crates/uv/src/commands/venv/shims/",
+                    target.as_deref().unwrap_or("unknown")
+                ),
+            )
+        })?;
+
     // Replace the venv python executable with the Bazel shim.
     #[cfg(unix)]
     {
@@ -95,7 +112,7 @@ pub(crate) fn bazel_runfiles_postprocess(
         if bin_python.exists() || bin_python.is_symlink() {
             fs_err::remove_file(&bin_python)?;
         }
-        install_bazel_shim(&bin_python)?;
+        install_bazel_shim(&bin_python, shim_bytes)?;
     }
 
     #[cfg(windows)]
@@ -104,21 +121,21 @@ pub(crate) fn bazel_runfiles_postprocess(
         if python_exe.exists() {
             fs_err::remove_file(&python_exe)?;
         }
-        install_bazel_shim(&python_exe)?;
+        install_bazel_shim(&python_exe, shim_bytes)?;
 
         let pythonw_exe = env.scripts().join("pythonw.exe");
         if pythonw_exe.exists() {
             fs_err::remove_file(&pythonw_exe)?;
         }
-        install_bazel_shim(&pythonw_exe)?;
+        install_bazel_shim(&pythonw_exe, shim_bytes)?;
     }
 
     Ok(())
 }
 
 /// Write the embedded shim binary to `dest` and make it executable.
-fn install_bazel_shim(dest: &Path) -> io::Result<()> {
-    fs_err::write(dest, SHIM_BYTES)?;
+fn install_bazel_shim(dest: &Path, shim_bytes: &[u8]) -> io::Result<()> {
+    fs_err::write(dest, shim_bytes)?;
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -127,6 +144,25 @@ fn install_bazel_shim(dest: &Path) -> io::Result<()> {
         fs_err::set_permissions(dest, perms)?;
     }
     Ok(())
+}
+
+/// Map an interpreter platform to a Rust target triple for shim selection.
+fn interpreter_target_triple(interpreter: &uv_python::Interpreter) -> Option<String> {
+    let os = interpreter.os().to_string();
+    let arch = interpreter.arch().to_string();
+    let libc = interpreter.libc().to_string();
+
+    match (os.as_str(), arch.as_str(), libc.as_str()) {
+        ("macos", "aarch64", "none") => Some("aarch64-apple-darwin".to_string()),
+        ("macos", "x86_64", "none") => Some("x86_64-apple-darwin".to_string()),
+        ("linux", "aarch64", "gnu") => Some("aarch64-unknown-linux-gnu".to_string()),
+        ("linux", "aarch64", "musl") => Some("aarch64-unknown-linux-musl".to_string()),
+        ("linux", "x86_64", "gnu") => Some("x86_64-unknown-linux-gnu".to_string()),
+        ("linux", "x86_64", "musl") => Some("x86_64-unknown-linux-musl".to_string()),
+        ("windows", "x86_64", "gnu") => Some("x86_64-pc-windows-gnu".to_string()),
+        ("windows", "x86_64", _) => Some("x86_64-pc-windows-msvc".to_string()),
+        _ => None,
+    }
 }
 
 /// Resolve the Bazel runfiles root from the environment or a sibling directory.
