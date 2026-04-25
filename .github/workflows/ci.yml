@@ -71,12 +71,11 @@ jobs:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
             shim_name: uv-bazel-shim-x86_64-unknown-linux-gnu
-            use_zigbuild: true
 
           - target: aarch64-unknown-linux-gnu
             os: ubuntu-latest
             shim_name: uv-bazel-shim-aarch64-unknown-linux-gnu
-            use_zigbuild: true
+            use_cross: true
 
           - target: x86_64-pc-windows-gnu
             os: ubuntu-latest
@@ -94,23 +93,36 @@ jobs:
           rustup default 1.94.1
           rustup target add ${{ matrix.target }}
 
+      - name: Install cross-compilation toolchain (aarch64 Linux)
+        if: matrix.use_cross
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu libc6-dev-arm64-cross
+
       - name: Install Zig
-        if: matrix.use_zigbuild
+        if: matrix.target == 'x86_64-pc-windows-gnu'
         uses: goto-bus-stop/setup-zig@v2
         with:
-          version: 0.13.0
+          version: 0.14.0
 
       - name: Install cargo-zigbuild
-        if: matrix.use_zigbuild
+        if: matrix.target == 'x86_64-pc-windows-gnu'
         run: cargo install cargo-zigbuild --locked
 
-      - name: Build shim (native macOS)
-        if: ${{ !matrix.use_zigbuild }}
+      - name: Build shim (native)
+        if: ${{ !matrix.use_cross && matrix.target != 'x86_64-pc-windows-gnu' }}
         working-directory: crates/uv-bazel-shim
         run: cargo build --release --target ${{ matrix.target }}
 
-      - name: Build shim (zigbuild cross)
-        if: matrix.use_zigbuild
+      - name: Build shim (cross aarch64 Linux)
+        if: matrix.use_cross
+        working-directory: crates/uv-bazel-shim
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Build shim (zigbuild Windows)
+        if: matrix.target == 'x86_64-pc-windows-gnu'
         working-directory: crates/uv-bazel-shim
         run: cargo zigbuild --release --target ${{ matrix.target }}
 
@@ -140,11 +152,10 @@ jobs:
 
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
-            use_zigbuild: true
 
           - target: aarch64-unknown-linux-gnu
             os: ubuntu-latest
-            use_zigbuild: true
+            use_cross: true
 
     steps:
       - uses: actions/checkout@v4
@@ -157,15 +168,11 @@ jobs:
           rustup default 1.94.1
           rustup target add ${{ matrix.target }}
 
-      - name: Install Zig
-        if: matrix.use_zigbuild
-        uses: goto-bus-stop/setup-zig@v2
-        with:
-          version: 0.13.0
-
-      - name: Install cargo-zigbuild
-        if: matrix.use_zigbuild
-        run: cargo install cargo-zigbuild --locked
+      - name: Install cross-compilation toolchain (aarch64 Linux)
+        if: matrix.use_cross
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu libc6-dev-arm64-cross
 
       - name: Download all shims
         uses: actions/download-artifact@v4
@@ -191,13 +198,15 @@ jobs:
           done
           ls -la crates/uv/src/commands/venv/shims/
 
-      - name: Build uv (native macOS)
-        if: ${{ !matrix.use_zigbuild }}
+      - name: Build uv (native)
+        if: ${{ !matrix.use_cross }}
         run: cargo build --release --target ${{ matrix.target }} -p uv
 
-      - name: Build uv (zigbuild Linux)
-        if: matrix.use_zigbuild
-        run: cargo zigbuild --release --target ${{ matrix.target }} -p uv
+      - name: Build uv (cross aarch64 Linux)
+        if: matrix.use_cross
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+        run: cargo build --release --target ${{ matrix.target }} -p uv
 
       - name: Archive binary
         shell: bash
