@@ -184,6 +184,7 @@ jobs:
           pattern: shim-*
 
       - name: Stage shims for embedding
+        shell: bash
         run: |
           mkdir -p crates/uv/src/commands/venv/shims
           for shim_dir in downloaded-shims/shim-*/; do
