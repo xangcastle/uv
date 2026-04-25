@@ -86,11 +86,9 @@ fn bazel_runfiles_creates_venv_and_pth() -> Result<()> {
         .child("_bazel.pth");
     pth_file.assert(predicates::path::is_file());
     pth_file.assert(predicates::str::contains(
-        "../../whl_install__requests/install/lib/python3.12/site-packages"
+        "../../whl_install__requests/install/lib/python3.12/site-packages",
     ));
-    pth_file.assert(predicates::str::contains(
-        "../../_main/libs/adminactions"
-    ));
+    pth_file.assert(predicates::str::contains("../../_main/libs/adminactions"));
 
     Ok(())
 }
@@ -132,7 +130,11 @@ fn bazel_runfiles_shim_replaces_python() -> Result<()> {
     bin_python.assert(predicates::path::is_file());
 
     // It should not be a symlink.
-    assert!(!std::fs::symlink_metadata(bin_python.path())?.file_type().is_symlink());
+    assert!(
+        !std::fs::symlink_metadata(bin_python.path())?
+            .file_type()
+            .is_symlink()
+    );
 
     // It should be executable.
     let metadata = std::fs::metadata(bin_python.path())?;
@@ -183,7 +185,11 @@ fn bazel_runfiles_shim_bytes_installed() -> Result<()> {
     bin_python.assert(predicates::path::is_file());
 
     // It should not be a symlink.
-    assert!(!std::fs::symlink_metadata(bin_python.path())?.file_type().is_symlink());
+    assert!(
+        !std::fs::symlink_metadata(bin_python.path())?
+            .file_type()
+            .is_symlink()
+    );
 
     // It should be executable.
     let metadata = std::fs::metadata(bin_python.path())?;
@@ -193,7 +199,10 @@ fn bazel_runfiles_shim_bytes_installed() -> Result<()> {
     // It should contain the embedded shim magic bytes (Mach-O header on macOS, ELF on Linux).
     let bytes = std::fs::read(bin_python.path())?;
     #[cfg(target_os = "macos")]
-    assert!(&bytes[..4] == b"\xcf\xfa\xed\xfe" || &bytes[..4] == b"\xfe\xed\xfa\xcf", "expected Mach-O magic bytes");
+    assert!(
+        &bytes[..4] == b"\xcf\xfa\xed\xfe" || &bytes[..4] == b"\xfe\xed\xfa\xcf",
+        "expected Mach-O magic bytes"
+    );
     #[cfg(target_os = "linux")]
     assert_eq!(&bytes[..4], b"\x7fELF", "expected ELF magic bytes");
 

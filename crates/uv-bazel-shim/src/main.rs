@@ -72,8 +72,8 @@ fn run_windows(shim_path: &Path, real_python: &Path, venv_root: &Path) -> Result
     use std::os::windows::ffi::OsStrExt;
     use windows::Win32::Foundation::{CloseHandle, HANDLE, WAIT_OBJECT_0};
     use windows::Win32::System::Threading::{
-        CreateProcessW, GetExitCodeProcess, WaitForSingleObject, CREATE_UNICODE_ENVIRONMENT,
-        PROCESS_INFORMATION, STARTUPINFOW,
+        CREATE_UNICODE_ENVIRONMENT, CreateProcessW, GetExitCodeProcess, PROCESS_INFORMATION,
+        STARTUPINFOW, WaitForSingleObject,
     };
 
     // Build command line: shim_path as argv[0], then real args.
@@ -194,8 +194,7 @@ fn resolve_interpreter(
     // 3. Sibling .runfiles directory
     if let Some(exe_name) = exe_path.file_name() {
         if let Some(parent) = exe_path.parent() {
-            let sibling =
-                parent.join(format!("{}.runfiles", exe_name.to_string_lossy()));
+            let sibling = parent.join(format!("{}.runfiles", exe_name.to_string_lossy()));
             let candidate = sibling.join(repo).join(interpreter_rloc);
             if candidate.exists() {
                 return Ok(candidate);
@@ -229,9 +228,10 @@ fn resolve_from_manifest(
         let line = line.ok()?;
         let mut parts = line.splitn(3, ' ');
         let runfiles_path = parts.next()?;
-        let local_path = parts.next().filter(|p| *p != "1" && *p != "0").or_else(|| {
-            parts.next()
-        })?;
+        let local_path = parts
+            .next()
+            .filter(|p| *p != "1" && *p != "0")
+            .or_else(|| parts.next())?;
         if runfiles_path == target {
             return Some(PathBuf::from(local_path));
         }

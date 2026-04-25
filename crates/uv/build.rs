@@ -83,10 +83,7 @@ fn embed_bazel_shim() {
             "SHIM_BYTES_{}",
             target.replace("-", "_").replace(".", "_").to_uppercase()
         );
-        content.push_str(&format!(
-            "        \"{}\" => Some({}),\n",
-            target, var_name
-        ));
+        content.push_str(&format!("        \"{}\" => Some({}),\n", target, var_name));
     }
     content.push_str("        _ => None,\n");
     content.push_str("    }\n");

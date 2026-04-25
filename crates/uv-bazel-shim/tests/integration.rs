@@ -58,8 +58,14 @@ fn shim_forwards_args_and_env() {
         "shim failed: stdout={stdout}, stderr={stderr}"
     );
 
-    assert!(stdout.contains("hello"), "expected 'hello' in stdout: {stdout}");
-    assert!(stdout.contains("world"), "expected 'world' in stdout: {stdout}");
+    assert!(
+        stdout.contains("hello"),
+        "expected 'hello' in stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains("world"),
+        "expected 'world' in stdout: {stdout}"
+    );
     assert!(
         stdout.contains("VIRTUAL_ENV="),
         "expected VIRTUAL_ENV in stdout: {stdout}"
@@ -86,11 +92,7 @@ fn shim_uses_absolute_fallback() {
     std::fs::set_permissions(&shim_path, perms).unwrap();
 
     let dummy = temp.path().join("fallback_python");
-    std::fs::write(
-        &dummy,
-        "#!/bin/sh\necho 'fallback-ok'\n",
-    )
-    .unwrap();
+    std::fs::write(&dummy, "#!/bin/sh\necho 'fallback-ok'\n").unwrap();
     let mut perms = std::fs::metadata(&dummy).unwrap().permissions();
     perms.set_mode(0o755);
     std::fs::set_permissions(&dummy, perms).unwrap();
@@ -111,7 +113,10 @@ fn shim_uses_absolute_fallback() {
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(output.status.success(), "shim failed: {stdout}");
-    assert!(stdout.contains("fallback-ok"), "expected fallback-ok: {stdout}");
+    assert!(
+        stdout.contains("fallback-ok"),
+        "expected fallback-ok: {stdout}"
+    );
 }
 
 #[test]
@@ -161,5 +166,8 @@ fn shim_uses_runfiles_manifest_file() {
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(output.status.success(), "shim failed: {stdout}");
-    assert!(stdout.contains("manifest-ok"), "expected manifest-ok: {stdout}");
+    assert!(
+        stdout.contains("manifest-ok"),
+        "expected manifest-ok: {stdout}"
+    );
 }

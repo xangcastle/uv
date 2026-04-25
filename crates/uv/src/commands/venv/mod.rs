@@ -8,6 +8,7 @@ use owo_colors::OwoColorize;
 use thiserror::Error;
 
 use uv_cache::Cache;
+use uv_cli::VenvMode;
 use uv_client::{BaseClientBuilder, FlatIndexClient, RegistryClientBuilder};
 use uv_configuration::{
     BuildOptions, Concurrency, Constraints, DependencyGroups, DryRun, IndexStrategy,
@@ -29,7 +30,6 @@ use uv_resolver::{ExcludeNewer, FlatIndex};
 use uv_settings::PythonInstallMirrors;
 use uv_shell::{Shell, shlex_posix, shlex_windows};
 use uv_types::{AnyErrorBuild, BuildContext, BuildIsolation, BuildStack, HashStrategy};
-use uv_cli::VenvMode;
 use uv_virtualenv::OnExisting;
 use uv_warnings::warn_user;
 use uv_workspace::{DiscoveryOptions, VirtualProject, WorkspaceCache, WorkspaceError};
@@ -218,8 +218,8 @@ pub(crate) async fn venv(
     .map_err(VenvError::Creation)?;
 
     if mode == VenvMode::BazelRunfiles {
-        let manifest_path = pth_manifest
-            .expect("--pth-manifest is required for --mode=bazel-runfiles");
+        let manifest_path =
+            pth_manifest.expect("--pth-manifest is required for --mode=bazel-runfiles");
         bazel_postprocess::bazel_runfiles_postprocess(&path, &venv, &manifest_path)
             .map_err(|err| VenvError::Creation(uv_virtualenv::Error::Io(err)))?;
     }

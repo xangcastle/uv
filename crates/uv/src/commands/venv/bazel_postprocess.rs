@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use uv_python::PythonEnvironment;
 use walkdir::WalkDir;
 
-use crate::commands::venv::bazel_manifest::{BazelPthManifest, BazelPopulationStrategy};
+use crate::commands::venv::bazel_manifest::{BazelPopulationStrategy, BazelPthManifest};
 use crate::commands::venv::shim_bytes::select_shim;
 
 /// Post-process a standard virtual environment for Bazel runfiles execution.
@@ -54,11 +54,8 @@ pub(crate) fn bazel_runfiles_postprocess(
                     populate_symlinks(&site_packages, source)?;
                 } else {
                     // Create a dangling symlink as a best-effort fallback.
-                    let dangling = PathBuf::from(format!(
-                        "../../{}/{}",
-                        entry.repo,
-                        entry.path.display()
-                    ));
+                    let dangling =
+                        PathBuf::from(format!("../../{}/{}", entry.repo, entry.path.display()));
                     let link_name = entry
                         .path
                         .file_name()
@@ -90,20 +87,17 @@ pub(crate) fn bazel_runfiles_postprocess(
 
     let interpreter = env.interpreter();
     let target = interpreter_target_triple(interpreter);
-    let shim_bytes = target
-        .as_deref()
-        .and_then(select_shim)
-        .ok_or_else(|| {
-            io::Error::new(
-                io::ErrorKind::Other,
-                format!(
-                    "No Bazel shim available for target {}. \
+    let shim_bytes = target.as_deref().and_then(select_shim).ok_or_else(|| {
+        io::Error::new(
+            io::ErrorKind::Other,
+            format!(
+                "No Bazel shim available for target {}. \
                      Run `cargo build -p uv-bazel-shim --release --target <triple>` \
                      and copy the binary to crates/uv/src/commands/venv/shims/",
-                    target.as_deref().unwrap_or("unknown")
-                ),
-            )
-        })?;
+                target.as_deref().unwrap_or("unknown")
+            ),
+        )
+    })?;
 
     // Replace the venv python executable with the Bazel shim.
     #[cfg(unix)]
@@ -227,7 +221,8 @@ fn populate_symlinks(site_packages: &Path, source: &Path) -> io::Result<()> {
                     if let Some(parent) = target_path.parent() {
                         fs_err::create_dir_all(parent)?;
                     }
-                    let link_target = uv_fs::relative_to(source_path, target_path.parent().unwrap())?;
+                    let link_target =
+                        uv_fs::relative_to(source_path, target_path.parent().unwrap())?;
                     uv_fs::replace_symlink(&link_target, target_path)?;
                 }
             }
