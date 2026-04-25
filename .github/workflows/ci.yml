@@ -112,7 +112,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: shim-${{ matrix.target }}
-          path: crates/uv-bazel-shim/target/${{ matrix.target }}/release/uv-bazel-shim${{ endsWith(matrix.shim_name, '.exe') && '.exe' || '' }}
+          path: target/${{ matrix.target }}/release/uv-bazel-shim${{ endsWith(matrix.shim_name, '.exe') && '.exe' || '' }}
           if-no-files-found: error
 
   # ---------------------------------------------------------------------------
@@ -174,7 +174,7 @@ jobs:
                 dest_name="uv-bazel-shim-${target}"
               fi
               cp "$shim_bin" "crates/uv/src/commands/venv/shims/${dest_name}"
-              echo "Staged: ${dest_name} ($(stat -f%z "$shim_bin" 2>/dev/null || stat -c%s "$shim_bin")) bytes"
+              echo "Staged: ${dest_name} ($(stat -f%z "$shim_bin" 2>/dev/null || stat -c%s "$shim_bin" 2>/dev/null || wc -c < "$shim_bin")) bytes"
             fi
           done
           ls -la crates/uv/src/commands/venv/shims/
