@@ -157,6 +157,10 @@ jobs:
             os: ubuntu-latest
             use_cross: true
 
+          - target: x86_64-pc-windows-gnu
+            os: ubuntu-latest
+            use_zigbuild: true
+
     steps:
       - uses: actions/checkout@v4
         with:
@@ -173,6 +177,16 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu libc6-dev-arm64-cross
+
+      - name: Install Zig
+        if: matrix.use_zigbuild
+        uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: 0.14.0
+
+      - name: Install cargo-zigbuild
+        if: matrix.use_zigbuild
+        run: cargo install cargo-zigbuild --locked
 
       - name: Download all shims
         uses: actions/download-artifact@v4
@@ -199,7 +213,7 @@ jobs:
           ls -la crates/uv/src/commands/venv/shims/
 
       - name: Build uv (native)
-        if: ${{ !matrix.use_cross }}
+        if: ${{ !matrix.use_cross && !matrix.use_zigbuild }}
         run: cargo build --release --target ${{ matrix.target }} -p uv
 
       - name: Build uv (cross aarch64 Linux)
@@ -208,21 +222,32 @@ jobs:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
         run: cargo build --release --target ${{ matrix.target }} -p uv
 
+      - name: Build uv (zigbuild Windows)
+        if: matrix.use_zigbuild
+        run: cargo zigbuild --release --target ${{ matrix.target }} -p uv
+
       - name: Archive binary
         shell: bash
         run: |
           VERSION="${{ needs.version.outputs.version }}"
           TARGET="${{ matrix.target }}"
           ARCHIVE_NAME="uv-${VERSION}-${TARGET}"
-          ARCHIVE_FILE="${ARCHIVE_NAME}.tar.gz"
 
-          mkdir -p "$ARCHIVE_NAME"
-          cp "target/${TARGET}/release/uv" "$ARCHIVE_NAME/uv"
-          cp "target/${TARGET}/release/uvx" "$ARCHIVE_NAME/uvx" 2>/dev/null || true
+          if [[ "$TARGET" == *windows* ]]; then
+            ARCHIVE_FILE="${ARCHIVE_NAME}.zip"
+            mkdir -p "$ARCHIVE_NAME"
+            cp "target/${TARGET}/release/uv.exe" "$ARCHIVE_NAME/uv.exe"
+            cp "target/${TARGET}/release/uvx.exe" "$ARCHIVE_NAME/uvx.exe" 2>/dev/null || true
+            zip -r "$ARCHIVE_FILE" "$ARCHIVE_NAME"
+          else
+            ARCHIVE_FILE="${ARCHIVE_NAME}.tar.gz"
+            mkdir -p "$ARCHIVE_NAME"
+            cp "target/${TARGET}/release/uv" "$ARCHIVE_NAME/uv"
+            cp "target/${TARGET}/release/uvx" "$ARCHIVE_NAME/uvx" 2>/dev/null || true
+            tar czvf "$ARCHIVE_FILE" "$ARCHIVE_NAME"
+          fi
 
-          tar czvf "$ARCHIVE_FILE" "$ARCHIVE_NAME"
           sha256sum "$ARCHIVE_FILE" > "${ARCHIVE_FILE}.sha256"
-
           echo "Created: $ARCHIVE_FILE"
           ls -la "$ARCHIVE_FILE"
 
@@ -259,6 +284,7 @@ jobs:
         run: |
           mkdir -p release
           find artifacts -name '*.tar.gz' -exec cp {} release/ \;
+          find artifacts -name '*.zip' -exec cp {} release/ \;
           find artifacts -name '*.sha256' -exec cp {} release/ \;
           ls -la release/
 
@@ -290,6 +316,7 @@ jobs:
           | macOS x86_64 | \`uv-${VERSION}-x86_64-apple-darwin.tar.gz\` |
           | Linux x86_64 | \`uv-${VERSION}-x86_64-unknown-linux-gnu.tar.gz\` |
           | Linux ARM64 | \`uv-${VERSION}-aarch64-unknown-linux-gnu.tar.gz\` |
+          | Windows x86_64 | \`uv-${VERSION}-x86_64-pc-windows-gnu.zip\` |
 
           ## Verification
 
