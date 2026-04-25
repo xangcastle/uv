@@ -89,10 +89,10 @@ jobs:
           persist-credentials: false
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-action@stable
-        with:
-          toolchain: 1.94.1
-          targets: ${{ matrix.target }}
+        run: |
+          rustup update 1.94.1
+          rustup default 1.94.1
+          rustup target add ${{ matrix.target }}
 
       - name: Install cargo-zigbuild
         if: matrix.use_zigbuild
@@ -146,10 +146,10 @@ jobs:
           persist-credentials: false
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-action@stable
-        with:
-          toolchain: 1.94.1
-          targets: ${{ matrix.target }}
+        run: |
+          rustup update 1.94.1
+          rustup default 1.94.1
+          rustup target add ${{ matrix.target }}
 
       - name: Install cargo-zigbuild
         if: matrix.use_zigbuild
