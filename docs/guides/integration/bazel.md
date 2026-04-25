@@ -66,9 +66,9 @@ uv venv \
    aspect-absolute-interpreter = /absolute/path/to/python3
    ```
 3. It populates `site-packages` using the strategies defined in the manifest.
-4. It replaces the venv Python executable with a small compiled shim chosen to match the *
-   *interpreter's platform** (not the host platform). The shim reads `pyvenv.cfg`, resolves the real
-   interpreter via the Bazel runfiles mechanism (`RUNFILES_DIR`, `RUNFILES_MANIFEST_FILE`, or a
+4. It replaces the venv Python executable with a small compiled shim chosen to match the \*
+   \*interpreter's platform\*\* (not the host platform). The shim reads `pyvenv.cfg`, resolves the
+   real interpreter via the Bazel runfiles mechanism (`RUNFILES_DIR`, `RUNFILES_MANIFEST_FILE`, or a
    sibling `.runfiles` directory), and then invokes the interpreter. On Unix the shim uses `execve`
    with `argv[0]` spoofing so Python believes it lives inside the virtual environment; on Windows it
    launches the interpreter with `CreateProcessW`.
@@ -112,8 +112,8 @@ for example, to warm the bytecode cache before execution), use `strategy: copy` 
 
 ### Static linking on Linux
 
-The Unix shim is linked statically on Linux (`crt-static`) so that it can run in minimal base
-images (for example, CentOS 7 or distroless containers) without requiring a modern dynamic libc.
+The Unix shim is linked statically on Linux (`crt-static`) so that it can run in minimal base images
+(for example, CentOS 7 or distroless containers) without requiring a modern dynamic libc.
 
 ### Windows support
 
