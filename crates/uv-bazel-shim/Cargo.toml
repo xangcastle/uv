@@ -4,6 +4,7 @@ version = "0.0.39"
 edition = "2024"
 
 [dependencies]
+fs-err = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]
 windows = { workspace = true, features = ["Win32_Foundation", "Win32_System_Threading"] }

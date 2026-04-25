@@ -154,7 +154,7 @@ fn find_pyvenv_cfg(mut start: &Path) -> Result<PathBuf, String> {
 }
 
 fn parse_pyvenv_cfg(path: &Path) -> Result<HashMap<String, String>, String> {
-    let file = std::fs::File::open(path).map_err(|e| format!("open pyvenv.cfg: {e}"))?;
+    let file = fs_err::File::open(path).map_err(|e| format!("open pyvenv.cfg: {e}"))?;
     let reader = io::BufReader::new(file);
     let mut map = HashMap::new();
     for line in reader.lines() {
@@ -183,22 +183,21 @@ fn resolve_interpreter(
     }
 
     // 2. RUNFILES_MANIFEST_FILE
-    if let Ok(manifest) = std::env::var("RUNFILES_MANIFEST_FILE") {
-        if let Some(path) = resolve_from_manifest(&manifest, repo, interpreter_rloc) {
-            if path.exists() {
-                return Ok(path);
-            }
-        }
+    if let Ok(manifest) = std::env::var("RUNFILES_MANIFEST_FILE")
+        && let Some(path) = resolve_from_manifest(&manifest, repo, interpreter_rloc)
+        && path.exists()
+    {
+        return Ok(path);
     }
 
     // 3. Sibling .runfiles directory
-    if let Some(exe_name) = exe_path.file_name() {
-        if let Some(parent) = exe_path.parent() {
-            let sibling = parent.join(format!("{}.runfiles", exe_name.to_string_lossy()));
-            let candidate = sibling.join(repo).join(interpreter_rloc);
-            if candidate.exists() {
-                return Ok(candidate);
-            }
+    if let Some(exe_name) = exe_path.file_name()
+        && let Some(parent) = exe_path.parent()
+    {
+        let sibling = parent.join(format!("{}.runfiles", exe_name.to_string_lossy()));
+        let candidate = sibling.join(repo).join(interpreter_rloc);
+        if candidate.exists() {
+            return Ok(candidate);
         }
     }
 
@@ -222,7 +221,7 @@ fn resolve_from_manifest(
     interpreter_rloc: &str,
 ) -> Option<PathBuf> {
     let target = format!("{repo}/{interpreter_rloc}");
-    let file = std::fs::File::open(manifest_path).ok()?;
+    let file = fs_err::File::open(manifest_path).ok()?;
     let reader = io::BufReader::new(file);
     for line in reader.lines() {
         let line = line.ok()?;

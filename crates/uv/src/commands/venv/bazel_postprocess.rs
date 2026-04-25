@@ -21,14 +21,14 @@ pub(crate) fn bazel_runfiles_postprocess(
     let repo = std::env::var("BAZEL_WORKSPACE").unwrap_or_else(|_| "_main".to_string());
 
     env.set_pyvenv_cfg("aspect-runfiles-interpreter", &interpreter_rloc)
-        .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+        .map_err(io::Error::other)?;
     env.set_pyvenv_cfg("aspect-runfiles-repo", &repo)
-        .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+        .map_err(io::Error::other)?;
     env.set_pyvenv_cfg(
         "aspect-absolute-interpreter",
         &env.interpreter().sys_executable().to_string_lossy(),
     )
-    .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+    .map_err(io::Error::other)?;
 
     let site_packages = env
         .site_packages()
@@ -63,7 +63,7 @@ pub(crate) fn bazel_runfiles_postprocess(
                     let target = site_packages.join(link_name);
                     #[cfg(unix)]
                     {
-                        std::os::unix::fs::symlink(&dangling, target)?;
+                        uv_fs::replace_symlink(&dangling, target)?;
                     }
                     #[cfg(windows)]
                     {
@@ -88,15 +88,12 @@ pub(crate) fn bazel_runfiles_postprocess(
     let interpreter = env.interpreter();
     let target = interpreter_target_triple(interpreter);
     let shim_bytes = target.as_deref().and_then(select_shim).ok_or_else(|| {
-        io::Error::new(
-            io::ErrorKind::Other,
-            format!(
-                "No Bazel shim available for target {}. \
+        io::Error::other(format!(
+            "No Bazel shim available for target {}. \
                      Run `cargo build -p uv-bazel-shim --release --target <triple>` \
                      and copy the binary to crates/uv/src/commands/venv/shims/",
-                target.as_deref().unwrap_or("unknown")
-            ),
-        )
+            target.as_deref().unwrap_or("unknown")
+        ))
     })?;
 
     // Replace the venv python executable with the Bazel shim.
@@ -184,7 +181,7 @@ fn populate_symlinks(site_packages: &Path, source: &Path) -> io::Result<()> {
             let target = site_packages.join(name);
             #[cfg(unix)]
             {
-                std::os::unix::fs::symlink(source, target)?;
+                uv_fs::replace_symlink(source, target)?;
             }
             #[cfg(windows)]
             {

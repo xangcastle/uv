@@ -5949,6 +5949,7 @@ dependencies = [
 name = "uv-bazel-shim"
 version = "0.0.39"
 dependencies = [
+ "fs-err",
  "tempfile",
  "windows",
 ]

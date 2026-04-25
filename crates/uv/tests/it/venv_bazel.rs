@@ -131,13 +131,13 @@ fn bazel_runfiles_shim_replaces_python() -> Result<()> {
 
     // It should not be a symlink.
     assert!(
-        !std::fs::symlink_metadata(bin_python.path())?
+        !fs_err::symlink_metadata(bin_python.path())?
             .file_type()
             .is_symlink()
     );
 
     // It should be executable.
-    let metadata = std::fs::metadata(bin_python.path())?;
+    let metadata = fs_err::metadata(bin_python.path())?;
     let permissions = metadata.permissions();
     assert!(permissions.mode() & 0o111 != 0);
 
@@ -186,18 +186,18 @@ fn bazel_runfiles_shim_bytes_installed() -> Result<()> {
 
     // It should not be a symlink.
     assert!(
-        !std::fs::symlink_metadata(bin_python.path())?
+        !fs_err::symlink_metadata(bin_python.path())?
             .file_type()
             .is_symlink()
     );
 
     // It should be executable.
-    let metadata = std::fs::metadata(bin_python.path())?;
+    let metadata = fs_err::metadata(bin_python.path())?;
     let permissions = metadata.permissions();
     assert!(permissions.mode() & 0o111 != 0);
 
     // It should contain the embedded shim magic bytes (Mach-O header on macOS, ELF on Linux).
-    let bytes = std::fs::read(bin_python.path())?;
+    let bytes = fs_err::read(bin_python.path())?;
     #[cfg(target_os = "macos")]
     assert!(
         &bytes[..4] == b"\xcf\xfa\xed\xfe" || &bytes[..4] == b"\xfe\xed\xfa\xcf",
