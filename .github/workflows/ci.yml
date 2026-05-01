@@ -77,6 +77,16 @@ jobs:
             shim_name: uv-bazel-shim-aarch64-unknown-linux-gnu
             use_cross: true
 
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+            shim_name: uv-bazel-shim-x86_64-unknown-linux-musl
+            use_zigbuild: true
+
+          - target: aarch64-unknown-linux-musl
+            os: ubuntu-latest
+            shim_name: uv-bazel-shim-aarch64-unknown-linux-musl
+            use_zigbuild: true
+
           - target: x86_64-pc-windows-gnu
             os: ubuntu-latest
             shim_name: uv-bazel-shim-x86_64-pc-windows-gnu.exe
@@ -100,17 +110,17 @@ jobs:
           sudo apt-get install -y gcc-aarch64-linux-gnu libc6-dev-arm64-cross
 
       - name: Install Zig
-        if: matrix.target == 'x86_64-pc-windows-gnu'
+        if: matrix.use_zigbuild
         uses: goto-bus-stop/setup-zig@v2
         with:
           version: 0.14.0
 
       - name: Install cargo-zigbuild
-        if: matrix.target == 'x86_64-pc-windows-gnu'
+        if: matrix.use_zigbuild
         run: cargo install cargo-zigbuild --locked
 
       - name: Build shim (native)
-        if: ${{ !matrix.use_cross && matrix.target != 'x86_64-pc-windows-gnu' }}
+        if: ${{ !matrix.use_cross && !matrix.use_zigbuild }}
         working-directory: crates/uv-bazel-shim
         run: cargo build --release --target ${{ matrix.target }}
 
@@ -121,8 +131,8 @@ jobs:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
         run: cargo build --release --target ${{ matrix.target }}
 
-      - name: Build shim (zigbuild Windows)
-        if: matrix.target == 'x86_64-pc-windows-gnu'
+      - name: Build shim (zigbuild)
+        if: matrix.use_zigbuild
         working-directory: crates/uv-bazel-shim
         run: cargo zigbuild --release --target ${{ matrix.target }}
 
@@ -157,6 +167,14 @@ jobs:
             os: ubuntu-latest
             use_cross: true
 
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+            use_zigbuild: true
+
+          - target: aarch64-unknown-linux-musl
+            os: ubuntu-latest
+            use_zigbuild: true
+
           - target: x86_64-pc-windows-msvc
             os: windows-latest
 
@@ -176,6 +194,16 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu libc6-dev-arm64-cross
+
+      - name: Install Zig
+        if: matrix.use_zigbuild
+        uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: 0.14.0
+
+      - name: Install cargo-zigbuild
+        if: matrix.use_zigbuild
+        run: cargo install cargo-zigbuild --locked
 
       - name: Download all shims
         uses: actions/download-artifact@v4
@@ -203,7 +231,7 @@ jobs:
           ls -la crates/uv/src/commands/venv/shims/
 
       - name: Build uv (native)
-        if: ${{ !matrix.use_cross && matrix.os != 'windows-latest' }}
+        if: ${{ !matrix.use_cross && !matrix.use_zigbuild && matrix.os != 'windows-latest' }}
         run: cargo build --release --target ${{ matrix.target }} -p uv
 
       - name: Build uv (cross aarch64 Linux)
@@ -211,6 +239,10 @@ jobs:
         env:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
         run: cargo build --release --target ${{ matrix.target }} -p uv
+
+      - name: Build uv (musl via zigbuild)
+        if: matrix.use_zigbuild
+        run: cargo zigbuild --release --target ${{ matrix.target }} -p uv
 
       - name: Build uv (Windows)
         if: matrix.os == 'windows-latest'
@@ -317,8 +349,10 @@ jobs:
           |----------|---------|
           | macOS ARM64 | \`uv-${VERSION}-aarch64-apple-darwin.tar.gz\` |
           | macOS x86_64 | \`uv-${VERSION}-x86_64-apple-darwin.tar.gz\` |
-          | Linux x86_64 | \`uv-${VERSION}-x86_64-unknown-linux-gnu.tar.gz\` |
-          | Linux ARM64 | \`uv-${VERSION}-aarch64-unknown-linux-gnu.tar.gz\` |
+          | Linux x86_64 (glibc) | \`uv-${VERSION}-x86_64-unknown-linux-gnu.tar.gz\` |
+          | Linux ARM64 (glibc) | \`uv-${VERSION}-aarch64-unknown-linux-gnu.tar.gz\` |
+          | Linux x86_64 (musl) | \`uv-${VERSION}-x86_64-unknown-linux-musl.tar.gz\` |
+          | Linux ARM64 (musl) | \`uv-${VERSION}-aarch64-unknown-linux-musl.tar.gz\` |
           | Windows x86_64 | \`uv-${VERSION}-x86_64-pc-windows-msvc.zip\` |
 
           ## Verification
