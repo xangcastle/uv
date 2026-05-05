@@ -146,6 +146,9 @@ mod tree;
 #[cfg(feature = "test-python")]
 mod venv;
 
+#[cfg(feature = "test-python")]
+mod venv_bazel;
+
 mod version;
 
 #[cfg(all(feature = "test-python", feature = "test-pypi"))]

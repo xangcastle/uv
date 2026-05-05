@@ -125,6 +125,7 @@ uv-static = { workspace = true }
 uv-version = { workspace = true }
 
 embed-manifest = { workspace = true }
+fs-err = { workspace = true }
 
 [dev-dependencies]
 uv-publish = { workspace = true, features = ["test"] }

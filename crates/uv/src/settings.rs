@@ -20,7 +20,7 @@ use uv_cli::{
     PipUninstallArgs, PythonFindArgs, PythonInstallArgs, PythonListArgs, PythonListFormat,
     PythonPinArgs, PythonUninstallArgs, PythonUpgradeArgs, RemoveArgs, RunArgs, SyncArgs,
     SyncFormat, ToolDirArgs, ToolInstallArgs, ToolListArgs, ToolRunArgs, ToolUninstallArgs,
-    TreeArgs, VenvArgs, VersionArgs, VersionBumpSpec, VersionFormat,
+    TreeArgs, VenvArgs, VenvMode, VersionArgs, VersionBumpSpec, VersionFormat,
 };
 use uv_cli::{
     AuthorFrom, BuildArgs, ExportArgs, FormatArgs, PublishArgs, PythonDirArgs,
@@ -3578,6 +3578,8 @@ pub(crate) struct VenvSettings {
     pub(crate) relocatable: bool,
     pub(crate) no_relocatable: bool,
     pub(crate) no_project: bool,
+    pub(crate) mode: VenvMode,
+    pub(crate) pth_manifest: Option<PathBuf>,
     pub(crate) refresh: Refresh,
     pub(crate) settings: PipSettings,
 }
@@ -3611,6 +3613,8 @@ impl VenvSettings {
             refresh,
             compat_args: _,
             exclude_newer_package,
+            mode,
+            pth_manifest,
         } = args;
 
         // Resolve flags from CLI and environment variables.
@@ -3629,6 +3633,8 @@ impl VenvSettings {
             no_project,
             relocatable,
             no_relocatable,
+            mode,
+            pth_manifest,
             refresh: Refresh::from(refresh),
             settings: PipSettings::combine(
                 PipOptions {

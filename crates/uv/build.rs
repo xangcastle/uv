@@ -13,6 +13,8 @@
 //! - Standard invoker execution levels for CLI applications to disable UAC virtualization.
 //!
 //! See <https://learn.microsoft.com/en-us/windows/win32/sbscs/application-manifests>
+use std::fmt::Write;
+
 use embed_manifest::manifest::{ActiveCodePage, ExecutionLevel, Setting, SupportedOS};
 use embed_manifest::{embed_manifest, empty_manifest};
 
@@ -38,4 +40,67 @@ fn main() {
         embed_manifest(manifest).expect("unable to embed manifest");
     }
     println!("cargo:rerun-if-changed=build.rs");
+
+    embed_bazel_shim();
+}
+
+fn embed_bazel_shim() {
+    let out_dir = std::env::var("OUT_DIR").unwrap();
+    let shims_dir = std::path::PathBuf::from("src/commands/venv/shims");
+
+    let mut shim_entries: Vec<(String, std::path::PathBuf)> = Vec::new();
+
+    for entry in fs_err::read_dir(&shims_dir).expect("read shims dir") {
+        let entry = entry.expect("read dir entry");
+        let name = entry.file_name().into_string().unwrap();
+        if let Some(rest) = name.strip_prefix("uv-bazel-shim-") {
+            let target = rest.strip_suffix(".exe").unwrap_or(rest);
+            shim_entries.push((target.to_string(), entry.path()));
+        }
+    }
+
+    assert!(
+        !shim_entries.is_empty(),
+        "No Bazel shim binaries found in {}",
+        shims_dir.display()
+    );
+
+    let mut content = String::new();
+
+    for (target, path) in &shim_entries {
+        let var_name = format!(
+            "SHIM_BYTES_{}",
+            target.replace(['-', '.'], "_").to_uppercase()
+        );
+        let abs_path = fs_err::canonicalize(path).unwrap_or_else(|_| path.clone());
+        let _ = writeln!(
+            content,
+            "pub(crate) static {}: &[u8] = include_bytes!(r#\"{}\"#);\n",
+            var_name,
+            abs_path.display()
+        );
+    }
+
+    let _ = writeln!(
+        content,
+        "\npub(crate) fn select_shim(target: &str) -> Option<&'static [u8]> {{"
+    );
+    let _ = writeln!(content, "    match target {{");
+    for (target, _) in &shim_entries {
+        let var_name = format!(
+            "SHIM_BYTES_{}",
+            target.replace(['-', '.'], "_").to_uppercase()
+        );
+        let _ = writeln!(content, "        \"{target}\" => Some({var_name}),");
+    }
+    let _ = writeln!(content, "        _ => None,");
+    let _ = writeln!(content, "    }}");
+    let _ = writeln!(content, "}}");
+
+    let shim_bytes_rs = std::path::PathBuf::from(&out_dir).join("shim_bytes.rs");
+    fs_err::write(&shim_bytes_rs, content).expect("write shim_bytes.rs");
+
+    for (_, path) in &shim_entries {
+        println!("cargo:rerun-if-changed={}", path.display());
+    }
 }
